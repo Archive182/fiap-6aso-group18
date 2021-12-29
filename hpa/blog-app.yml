@@ -1,19 +1,18 @@
 apiVersion: autoscaling/v2beta2
 kind: HorizontalPodAutoscaler
 metadata:
-  name: hpa-blog-django-py-git
-  namespace: group18
+  name: blog-app-hpa
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
-    name: blog-django-py-git
+    name: blog-app
   minReplicas: 2
-  maxReplicas: 10
+  maxReplicas: 5
   metrics:
     - type: Resource
       resource:
         name: cpu
         target:
-          averageUtilization: 20
+          averageUtilization: 70
           type: Utilization

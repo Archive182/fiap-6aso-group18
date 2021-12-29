@@ -1,0 +1,27 @@
+kind: Route
+apiVersion: route.openshift.io/v1
+metadata:
+  name: blog-app
+  labels:
+    app: blog-app
+    app.kubernetes.io/component: blog-app
+    app.kubernetes.io/instance: blog-app
+    app.kubernetes.io/name: python
+    app.kubernetes.io/part-of: blog-app
+    app.openshift.io/runtime: python
+    app.openshift.io/runtime-version: 3.8-ubi7
+spec:
+  host: blog-app.apps.na46.prod.nextcle.com
+  to:
+    kind: Service
+    name: blog-app
+    weight: 100
+  port:
+    targetPort: 8080-tcp
+  wildcardPolicy: None
+status:
+  ingress:
+    - host: blog-app.apps.na46.prod.nextcle.com
+      routerName: default
+      wildcardPolicy: None
+      routerCanonicalHostname: apps.na46.prod.nextcle.com

@@ -1,0 +1,7 @@
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: blog-app-cm
+data:
+  blog.site.name: FIAP ASO6 Group 18
+  blog.site.color: blue

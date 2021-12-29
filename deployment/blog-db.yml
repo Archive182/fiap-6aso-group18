@@ -1,0 +1,68 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: blog-db
+  labels:
+    app: blog-django-py-git
+    template: postgresql-persistent-template
+    app.kubernetes.io/name: postgresql
+    app.kubernetes.io/part-of: blog-app
+    app.kubernetes.io/component: blog-django-py-git
+    app.kubernetes.io/instance: blog-django-py-git
+spec:
+  selector:
+    matchLabels:
+      app: blog-db
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: blog-db
+    spec:
+      strategy: Recreate
+      volumes:
+        - name: blog-db-data
+          persistentVolumeClaim:
+            claimName: blog-db-pvc
+      containers:
+        - resources:
+            limits:
+              memory: 512Mi
+          name: postgresql
+          env:
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: blog-db
+                  key: database-user
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: blog-db
+                  key: database-password
+            - name: POSTGRES_DATABASE
+              valueFrom:
+                secretKeyRef:
+                  name: blog-db
+                  key: database-name
+          securityContext:
+            capabilities: {}
+            privileged: false
+          ports:
+            - containerPort: 5432
+              protocol: TCP
+          imagePullPolicy: IfNotPresent
+          image: postgres:latest
+          volumeMounts:
+            - name: blog-db-data
+              mountPath: /var/lib/pgsql/data:z
+              readOnly: false
+          terminationMessagePolicy: File
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 30
+      dnsPolicy: ClusterFirst
+      securityContext: {}
+      schedulerName: default-scheduler
+      command: ['/bin/sh', '-c', 'chmod -R 777 /var/lib/postgresql/data']

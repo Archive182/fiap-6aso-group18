@@ -1,0 +1,17 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: blog-db
+  labels:
+    app: blog-django-py-git
+    template: postgresql-persistent-template
+    app.kubernetes.io/name: postgres
+    app.kubernetes.io/part-of: blog-app
+    app.kubernetes.io/component: blog-django-py-git
+    app.kubernetes.io/instance: blog-django-py-git
+spec:
+  selector:
+    app: blog-db
+  ports:
+    - port: 5432
+  type: ClusterIP

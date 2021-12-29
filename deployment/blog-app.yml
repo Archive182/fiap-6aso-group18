@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: blog-app
+  labels:
+    app: blog-django-py-git
+    app.kubernetes.io/component: blog-django-py-git
+    app.kubernetes.io/instance: blog-django-py-git
+    app.kubernetes.io/name: python
+    app.kubernetes.io/part-of: blog-app
+    app.openshift.io/runtime: python
+    app.openshift.io/runtime-version: 3.8-ubi7
+spec:
+  selector:
+    matchLabels:
+      app: blog-app
+  replicas: 1
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: blog-app
+        deploymentconfig: blog-django-py-git
+    spec:
+      containers:
+        - name: blog-app
+          image: 'openshiftkatacoda/blog-django-py:latest'
+          imagePullPolicy: Always
+          terminationMessagePath: /dev/termination-log
+          ports:
+            - containerPort: 8080
+              protocol: TCP
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: blog-db
+                  key: database-url
+            - name: BLOG_SITE_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: blog-app-cm
+                  key: blog.site.name
+            - name: BLOG_BANNER_COLOR
+              valueFrom:
+                configMapKeyRef:
+                  name: blog-app-cm
+                  key: blog.site.color

@@ -8,3 +8,14 @@ oc new-app postgresql-persistent --name sample-database --param DATABASE_SERVICE
 
 oc set env deployment blog-django-py-git DATABASE_URL=postgresql://sampledb:sampledb@sample-database:5432/sampledb
 ```
+
+# Hands on 02
+
+```
+### Setup persistencia
+cp .s2i/action_hooks/setup .
+```
+
+- deploy + hpa app
+- deploy + hap db
+- variables

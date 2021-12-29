@@ -1,0 +1,245 @@
+kind: Secret
+apiVersion: v1
+metadata:
+  name: blog-db
+  labels:
+    app: blog-db
+    app.kubernetes.io/component: blog-db
+    app.kubernetes.io/instance: blog-db
+    template: postgresql-persistent-template
+stringData:
+  database-name: blogdb
+  database-password: blogdb
+  database-user: blogdb
+  database-url: postgresql://blogdb:blogdb@blog-db:5432/blogdb
+type: Opaque
+---
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: blog-app-cm
+data:
+  blog.site.name: FIAP ASO6 Group 18
+  blog.site.color: blue
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: blog-db-pvc
+spec:
+  storageClassName: standard
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: blog-db
+  labels:
+    app: blog-django-py-git
+    template: postgresql-persistent-template
+    app.kubernetes.io/name: postgresql
+    app.kubernetes.io/part-of: blog-app
+    app.kubernetes.io/component: blog-django-py-git
+    app.kubernetes.io/instance: blog-django-py-git
+spec:
+  selector:
+    matchLabels:
+      app: blog-db
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: blog-db
+    spec:
+      strategy: Recreate
+      volumes:
+        - name: blog-db-data
+          persistentVolumeClaim:
+            claimName: blog-db-pvc
+      containers:
+        - resources:
+            limits:
+              memory: 512Mi
+          name: postgresql
+          env:
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: blog-db
+                  key: database-user
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: blog-db
+                  key: database-password
+            - name: POSTGRES_DATABASE
+              valueFrom:
+                secretKeyRef:
+                  name: blog-db
+                  key: database-name
+          securityContext:
+            capabilities: {}
+            privileged: false
+          ports:
+            - containerPort: 5432
+              protocol: TCP
+          imagePullPolicy: IfNotPresent
+          image: postgres:latest
+          volumeMounts:
+            - name: blog-db-data
+              mountPath: /var/lib/pgsql/data:z
+              readOnly: false
+          terminationMessagePolicy: File
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 30
+      dnsPolicy: ClusterFirst
+      securityContext: {}
+      schedulerName: default-scheduler
+      command: ['/bin/sh', '-c', 'chmod -R 777 /var/lib/postgresql/data']
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: blog-db
+  labels:
+    app: blog-django-py-git
+    template: postgresql-persistent-template
+    app.kubernetes.io/name: postgres
+    app.kubernetes.io/part-of: blog-app
+    app.kubernetes.io/component: blog-django-py-git
+    app.kubernetes.io/instance: blog-django-py-git
+spec:
+  selector:
+    app: blog-db
+  ports:
+    - port: 5432
+  type: ClusterIP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: blog-app
+  labels:
+    app: blog-django-py-git
+    app.kubernetes.io/component: blog-django-py-git
+    app.kubernetes.io/instance: blog-django-py-git
+    app.kubernetes.io/name: python
+    app.kubernetes.io/part-of: blog-app
+    app.openshift.io/runtime: python
+    app.openshift.io/runtime-version: 3.8-ubi7
+spec:
+  selector:
+    matchLabels:
+      app: blog-app
+  replicas: 1
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: blog-app
+        deploymentconfig: blog-django-py-git
+    spec:
+      containers:
+        - name: blog-app
+          image: 'openshiftkatacoda/blog-django-py:latest'
+          imagePullPolicy: Always
+          terminationMessagePath: /dev/termination-log
+          ports:
+            - containerPort: 8080
+              protocol: TCP
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: blog-db
+                  key: database-url
+            - name: BLOG_SITE_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: blog-app-cm
+                  key: blog.site.name
+            - name: BLOG_BANNER_COLOR
+              valueFrom:
+                configMapKeyRef:
+                  name: blog-app-cm
+                  key: blog.site.color
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: blog-app
+  labels:
+    app: blog-app
+    app.kubernetes.io/component: blog-app
+    app.kubernetes.io/instance: blog-app
+    app.kubernetes.io/name: python
+    app.kubernetes.io/part-of: blog-app
+    app.openshift.io/runtime: python
+    app.openshift.io/runtime-version: 3.8-ubi7
+spec:
+  ports:
+    - name: 8080-tcp
+      protocol: TCP
+      port: 8080
+      targetPort: 8080
+  selector:
+    app: blog-app
+  type: ClusterIP
+  sessionAffinity: None
+status:
+  loadBalancer: {}
+---
+kind: Route
+apiVersion: route.openshift.io/v1
+metadata:
+  name: blog-app
+  labels:
+    app: blog-app
+    app.kubernetes.io/component: blog-app
+    app.kubernetes.io/instance: blog-app
+    app.kubernetes.io/name: python
+    app.kubernetes.io/part-of: blog-app
+    app.openshift.io/runtime: python
+    app.openshift.io/runtime-version: 3.8-ubi7
+spec:
+  host: blog-app.apps.na46.prod.nextcle.com
+  to:
+    kind: Service
+    name: blog-app
+    weight: 100
+  port:
+    targetPort: 8080-tcp
+  wildcardPolicy: None
+status:
+  ingress:
+    - host: blog-app.apps.na46.prod.nextcle.com
+      routerName: default
+      wildcardPolicy: None
+      routerCanonicalHostname: apps.na46.prod.nextcle.com
+---
+apiVersion: autoscaling/v2beta2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: blog-app-hpa
+  namespace: fiap
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: blog-app
+  minReplicas: 2
+  maxReplicas: 5
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          averageUtilization: 70
+          type: Utilization
