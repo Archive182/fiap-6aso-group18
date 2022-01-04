@@ -5,6 +5,6 @@
 - rm340619
 - rm341487
 
-## To create environment
+## Create the environment
 
 `oc apply -f full.yml`
